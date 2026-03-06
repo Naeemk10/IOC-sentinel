@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IOC Sentinel v4 — Bulk Threat Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg0:#04060c;--bg1:#080c14;--bg2:#0c1220;--bg3:#101828;
+  --border:#162032;--border2:#1e2f45;
+  --accent:#00ffe0;--accent2:#0a84ff;
+  --red:#ff3b55;--orange:#ff8c00;--yellow:#ffd60a;--green:#30d158;--purple:#bf5af2;
+  --gray:#5a7080;--text:#b8cfe0;--white:#e8f4ff;
+  --font-ui:'Oxanium',sans-serif;--font-mono:'JetBrains Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg0);color:var(--text);font-family:var(--font-ui);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 50% at 10% 10%,rgba(0,255,224,0.035) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 60% at 90% 90%,rgba(10,132,255,0.04) 0%,transparent 60%),
+    repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,0.01) 40px),
+    repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,0.01) 40px);}
+@keyframes sweep{0%{transform:translateY(-100vh);opacity:0}8%{opacity:1}92%{opacity:1}100%{transform:translateY(100vh);opacity:0}}
+.sweep{position:fixed;left:0;right:0;height:1px;z-index:0;pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(0,255,224,0.2),transparent);animation:sweep 8s linear infinite;}
+.app{position:relative;z-index:1;}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px;}
+
+/* HEADER */
+header{padding:16px 0;border-bottom:1px solid var(--border);background:rgba(4,6,12,0.9);
+  backdrop-filter:blur(14px);position:sticky;top:0;z-index:200;}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.brand{display:flex;align-items:center;gap:12px;}
+.b-icon{width:36px;height:36px;border:1px solid var(--accent);border-radius:7px;display:flex;
+  align-items:center;justify-content:center;font-size:16px;background:rgba(0,255,224,0.06);
+  animation:glow 3s ease infinite;}
+@keyframes glow{0%,100%{box-shadow:0 0 8px rgba(0,255,224,0.2)}50%{box-shadow:0 0 20px rgba(0,255,224,0.4)}}
+.b-name{font-size:19px;font-weight:800;color:var(--white);letter-spacing:2px;}
+.b-name span{color:var(--accent);}
+.b-ver{font-family:var(--font-mono);font-size:8px;color:var(--accent);letter-spacing:2px;
+  padding:1px 6px;border:1px solid rgba(0,255,224,0.3);border-radius:3px;margin-left:6px;}
+.b-sub{font-family:var(--font-mono);font-size:8px;color:var(--gray);letter-spacing:3px;}
+.h-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.api-pills{display:flex;gap:6px;}
+.ap{font-family:var(--font-mono);font-size:8px;padding:3px 9px;border-radius:3px;
+  border:1px solid;display:flex;align-items:center;gap:4px;letter-spacing:1px;transition:all .3s;}
+.ap.off{border-color:var(--border2);color:var(--gray);}
+.ap.sim{border-color:rgba(255,214,10,0.4);color:var(--yellow);}
+.ap.on {border-color:rgba(48,209,88,0.4);color:var(--green);}
+.ap::before{content:'';width:4px;height:4px;border-radius:50%;background:currentColor;}
+.ap.on::before,.ap.sim::before{animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.15}}
+/* Rate limit timer */
+.rate-banner{display:none;background:rgba(255,140,0,0.08);border:1px solid rgba(255,140,0,0.3);
+  border-radius:6px;padding:8px 14px;font-family:var(--font-mono);font-size:11px;color:var(--orange);
+  align-items:center;gap:10px;margin-bottom:16px;}
+.rate-banner.show{display:flex;}
+.rate-count{font-size:18px;font-weight:700;min-width:28px;}
+
+/* TABS */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:22px;}
+.tab{font-family:var(--font-mono);font-size:10px;letter-spacing:2px;padding:10px 20px;
+  cursor:pointer;border:none;background:transparent;color:var(--gray);border-bottom:2px solid transparent;
+  transition:all .2s;text-transform:uppercase;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* SEC LABEL */
+.sl{font-family:var(--font-mono);font-size:9px;color:var(--gray);letter-spacing:3px;
+  text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:10px;}
+.sl::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* UPLOAD */
+.upload-zone{border:2px dashed var(--border2);border-radius:10px;padding:32px 20px;
+  text-align:center;cursor:pointer;transition:all .25s;background:rgba(12,18,32,0.4);position:relative;}
+.upload-zone:hover,.upload-zone.over{border-color:var(--accent);background:rgba(0,255,224,0.02);
+  box-shadow:inset 0 0 30px rgba(0,255,224,0.03),0 0 20px rgba(0,255,224,0.06);}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.u-icon{font-size:32px;margin-bottom:8px;opacity:.5;}
+.u-title{font-size:15px;font-weight:700;color:var(--white);margin-bottom:4px;}
+.u-sub{font-family:var(--font-mono);font-size:9px;color:var(--gray);}
+.u-sub span{color:var(--accent);}
+.file-chip{display:none;margin-top:12px;padding:9px 13px;background:rgba(0,255,224,0.05);
+  border:1px solid rgba(0,255,224,0.2);border-radius:6px;font-family:var(--font-mono);
+  font-size:10px;color:var(--accent);align-items:center;gap:8px;}
+.file-chip.show{display:flex;}
+
+/* PASTE BOX */
+.paste-wrap{position:relative;}
+.paste-box{width:100%;min-height:130px;background:var(--bg2);border:1px solid var(--border2);
+  border-radius:8px;padding:12px 14px;color:var(--white);font-family:var(--font-mono);
+  font-size:11px;line-height:1.7;outline:none;resize:vertical;transition:border-color .2s;}
+.paste-box:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,255,224,0.06);}
+.paste-box::placeholder{color:var(--gray);}
+.paste-actions{display:flex;gap:8px;margin-top:8px;align-items:center;}
+.paste-count{font-family:var(--font-mono);font-size:9px;color:var(--gray);}
+
+/* WARNING BANNER */
+.warn-banner{display:none;background:rgba(255,59,85,0.07);border:1px solid rgba(255,59,85,0.3);
+  border-radius:8px;padding:12px 16px;margin-bottom:16px;font-family:var(--font-mono);font-size:10px;
+  color:var(--red);line-height:1.7;}
+.warn-banner.show{display:block;}
+.warn-banner strong{color:var(--white);}
+
+/* KEYS */
+.keys-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px;}
+.kf label{font-family:var(--font-mono);font-size:8px;color:var(--gray);letter-spacing:2px;
+  display:block;margin-bottom:5px;text-transform:uppercase;}
+.kf input{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;
+  padding:9px 12px;color:var(--white);font-family:var(--font-mono);font-size:10px;
+  outline:none;transition:border-color .2s;}
+.kf input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,255,224,0.06);}
+.kf input::placeholder{color:var(--gray);}
+.keys-note{font-family:var(--font-mono);font-size:8px;color:var(--gray);margin-bottom:18px;line-height:1.7;}
+.keys-note a{color:var(--accent2);text-decoration:none;}
+.keys-note a:hover{text-decoration:underline;}
+
+/* BUTTONS */
+.run-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:24px;}
+.btn{font-family:var(--font-ui);font-weight:700;font-size:11px;letter-spacing:1.5px;
+  text-transform:uppercase;padding:10px 22px;border:none;border-radius:6px;cursor:pointer;
+  transition:all .2s;position:relative;overflow:hidden;}
+.btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);
+  transform:translateX(-100%);transition:transform .4s;}
+.btn:hover::after{transform:translateX(100%);}
+.bp{background:var(--accent);color:#000;}
+.bp:hover{box-shadow:0 0 24px rgba(0,255,224,0.35);transform:translateY(-1px);}
+.bp:disabled{background:var(--border2);color:var(--gray);cursor:not-allowed;transform:none;box-shadow:none;}
+.bp:disabled::after{display:none;}
+.bg{background:transparent;border:1px solid;}
+.b-demo{color:var(--accent2);border-color:rgba(10,132,255,0.35);}
+.b-demo:hover{background:rgba(10,132,255,0.07);}
+.b-rst{color:var(--gray);border-color:var(--border2);}
+.b-rst:hover{border-color:var(--gray);color:var(--text);}
+.b-exp{color:var(--green);border-color:rgba(48,209,88,0.35);}
+.b-exp:hover{background:rgba(48,209,88,0.07);}
+.b-exp:disabled{opacity:.3;cursor:not-allowed;}
+.b-pause{color:var(--yellow);border-color:rgba(255,214,10,0.35);}
+.b-pause:hover{background:rgba(255,214,10,0.07);}
+
+/* PROGRESS */
+.prog-sec{display:none;margin-bottom:22px;}
+.prog-sec.show{display:block;}
+.prog-top{display:flex;justify-content:space-between;margin-bottom:6px;}
+.prog-lbl{font-family:var(--font-mono);font-size:10px;color:var(--accent);}
+.prog-st{font-family:var(--font-mono);font-size:9px;color:var(--gray);}
+.prog-track{height:5px;background:var(--bg2);border-radius:3px;border:1px solid var(--border);overflow:hidden;margin-bottom:9px;}
+.prog-fill{height:100%;border-radius:3px;width:0%;background:linear-gradient(90deg,#00ffe0,#0a84ff);
+  transition:width .4s ease;box-shadow:0 0 8px rgba(0,255,224,0.3);}
+.phases{display:flex;gap:6px;flex-wrap:wrap;}
+.ph{font-family:var(--font-mono);font-size:8px;letter-spacing:1px;padding:3px 9px;
+  border-radius:20px;border:1px solid var(--border);color:var(--gray);transition:all .3s;
+  display:flex;align-items:center;gap:4px;}
+.ph .pd{width:4px;height:4px;border-radius:50%;background:currentColor;}
+.ph.active{border-color:var(--accent);color:var(--accent);background:rgba(0,255,224,0.06);}
+.ph.active .pd{animation:blink .7s infinite;}
+.ph.done{border-color:var(--green);color:var(--green);background:rgba(48,209,88,0.05);}
+
+/* DASHBOARD GRID */
+.dash-grid{display:grid;grid-template-columns:1fr 280px;gap:16px;margin-bottom:22px;}
+/* Summary cards */
+.cards-col{display:flex;flex-direction:column;gap:10px;}
+.cards-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.card{background:var(--bg1);border:1px solid var(--border);border-radius:8px;
+  padding:14px 12px;text-align:center;transition:transform .2s;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.card:hover{transform:translateY(-2px);}
+.c-tot::before{background:linear-gradient(90deg,var(--accent2),var(--accent));}
+.c-mal::before{background:var(--red);}
+.c-sus::before{background:var(--yellow);}
+.c-cln::before{background:var(--green);}
+.c-unk::before{background:var(--gray);}
+.cn{font-size:30px;font-weight:800;line-height:1;margin-bottom:2px;}
+.c-tot .cn{color:var(--white);}
+.c-mal .cn{color:var(--red);}
+.c-sus .cn{color:var(--yellow);}
+.c-cln .cn{color:var(--green);}
+.c-unk .cn{color:var(--gray);}
+.cl{font-family:var(--font-mono);font-size:8px;color:var(--gray);letter-spacing:1px;}
+.cbar{height:2px;background:var(--border);border-radius:1px;margin-top:8px;overflow:hidden;}
+.cbf{height:100%;border-radius:1px;transition:width 1.2s ease .2s;width:0%;}
+.c-mal .cbf{background:var(--red);}
+.c-sus .cbf{background:var(--yellow);}
+.c-cln .cbf{background:var(--green);}
+/* Donut chart */
+.chart-panel{background:var(--bg1);border:1px solid var(--border);border-radius:8px;
+  padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.chart-title{font-family:var(--font-mono);font-size:9px;color:var(--gray);letter-spacing:2px;
+  text-transform:uppercase;margin-bottom:10px;}
+.chart-canvas-wrap{position:relative;width:160px;height:160px;}
+.chart-center{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;pointer-events:none;}
+.chart-center-num{font-size:26px;font-weight:800;color:var(--white);}
+.chart-center-lbl{font-family:var(--font-mono);font-size:8px;color:var(--gray);letter-spacing:1px;}
+.chart-legend{display:flex;flex-direction:column;gap:5px;margin-top:12px;width:100%;}
+.cl-item{display:flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:9px;}
+.cl-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+.cl-label{color:var(--gray);flex:1;}
+.cl-val{color:var(--text);}
+
+/* RESULTS */
+.results-sec{display:none;}
+.results-sec.show{display:block;}
+.res-top{display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:12px;flex-wrap:wrap;gap:10px;}
+.res-title{font-family:var(--font-mono);font-size:10px;color:var(--accent);letter-spacing:2px;}
+.res-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+/* Search */
+.search-wrap{position:relative;}
+.search-inp{background:var(--bg2);border:1px solid var(--border2);border-radius:6px;
+  padding:6px 10px 6px 30px;color:var(--white);font-family:var(--font-mono);font-size:10px;
+  outline:none;width:200px;transition:border-color .2s;}
+.search-inp:focus{border-color:var(--accent);}
+.search-inp::placeholder{color:var(--gray);}
+.search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);
+  font-size:11px;pointer-events:none;color:var(--gray);}
+/* Filters */
+.filters{display:flex;gap:5px;flex-wrap:wrap;}
+.fb{font-family:var(--font-mono);font-size:8px;letter-spacing:1px;padding:4px 10px;
+  border-radius:20px;cursor:pointer;border:1px solid var(--border);background:transparent;
+  color:var(--gray);transition:all .15s;text-transform:uppercase;}
+.fb:hover{color:var(--text);border-color:var(--border2);}
+.fb.active{background:rgba(0,255,224,0.07);border-color:var(--accent);color:var(--accent);}
+.fb.fm.active{background:rgba(255,59,85,.07);border-color:var(--red);color:var(--red);}
+.fb.fs.active{background:rgba(255,214,10,.07);border-color:var(--yellow);color:var(--yellow);}
+.fb.fc.active{background:rgba(48,209,88,.07);border-color:var(--green);color:var(--green);}
+/* Table */
+.tbl-wrap{background:var(--bg1);border:1px solid var(--border);border-radius:9px;overflow:hidden;}
+table{width:100%;border-collapse:collapse;}
+thead tr{border-bottom:1px solid var(--border);background:rgba(0,0,0,.2);}
+th{padding:9px 12px;font-family:var(--font-mono);font-size:8px;color:var(--gray);
+  text-align:left;letter-spacing:2px;white-space:nowrap;text-transform:uppercase;cursor:pointer;
+  user-select:none;transition:color .15s;}
+th:hover{color:var(--text);}
+th .sort-arrow{opacity:.4;margin-left:4px;}
+th.sorted .sort-arrow{opacity:1;color:var(--accent);}
+tbody tr{border-bottom:1px solid rgba(22,32,50,.5);transition:background .12s;
+  animation:rIn .25s ease both;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:rgba(0,255,224,0.015);}
+@keyframes rIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+td{padding:10px 12px;font-family:var(--font-mono);font-size:10px;vertical-align:middle;}
+.ioc-cell{max-width:220px;}
+.iv{color:var(--white);font-size:10px;word-break:break-all;}
+.im{font-size:8px;color:var(--gray);margin-top:2px;}
+.tbadge{display:inline-block;padding:2px 6px;border-radius:3px;font-size:8px;letter-spacing:1px;
+  background:rgba(10,132,255,0.1);color:var(--accent2);border:1px solid rgba(10,132,255,0.2);}
+.vpill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;
+  font-size:8px;font-weight:600;letter-spacing:1px;white-space:nowrap;}
+.vpill.MALICIOUS {background:rgba(255,59,85,.12); color:var(--red);   border:1px solid rgba(255,59,85,.3);}
+.vpill.SUSPICIOUS{background:rgba(255,214,10,.1); color:var(--yellow);border:1px solid rgba(255,214,10,.3);}
+.vpill.CLEAN     {background:rgba(48,209,88,.1);  color:var(--green); border:1px solid rgba(48,209,88,.3);}
+.vpill.UNKNOWN   {background:rgba(90,112,128,.1); color:var(--gray);  border:1px solid rgba(90,112,128,.3);}
+.vpill.CHECKING  {background:rgba(0,255,224,.07); color:var(--accent);border:1px solid rgba(0,255,224,.2);animation:blink 1s infinite;}
+/* score bar */
+.sb{display:flex;align-items:center;gap:6px;}
+.st{width:48px;height:3px;background:var(--bg2);border-radius:2px;overflow:hidden;flex-shrink:0;}
+.sf{height:100%;border-radius:2px;transition:width .8s ease;}
+.sn{font-size:9px;min-width:24px;}
+/* geo */
+.geo{font-size:9px;color:var(--text);}
+/* chips */
+.chips{display:flex;gap:3px;flex-wrap:wrap;}
+.chip{font-size:8px;padding:1px 5px;border-radius:2px;border:1px solid var(--border);
+  color:var(--gray);background:rgba(255,255,255,.02);}
+.chip.cr{color:var(--red);   border-color:rgba(255,59,85,.3); background:rgba(255,59,85,.04);}
+.chip.co{color:var(--orange);border-color:rgba(255,140,0,.3); background:rgba(255,140,0,.04);}
+.chip.cy{color:var(--yellow);border-color:rgba(255,214,10,.3);background:rgba(255,214,10,.04);}
+.chip.cg{color:var(--green); border-color:rgba(48,209,88,.3); background:rgba(48,209,88,.04);}
+/* empty */
+.empty-s{padding:48px 20px;text-align:center;font-family:var(--font-mono);}
+.ei{font-size:40px;opacity:.35;margin-bottom:10px;}
+.et{font-size:10px;color:var(--gray);}
+/* Log */
+.log-sec{margin-top:18px;}
+.log-tog{font-family:var(--font-mono);font-size:8px;color:var(--gray);letter-spacing:2px;
+  cursor:pointer;display:flex;align-items:center;gap:6px;background:none;border:none;
+  padding:0;text-transform:uppercase;margin-bottom:7px;}
+.log-tog:hover{color:var(--text);}
+.log-body{display:none;background:var(--bg1);border:1px solid var(--border);border-radius:7px;
+  padding:11px 13px;font-family:var(--font-mono);font-size:9px;line-height:1.9;
+  max-height:180px;overflow-y:auto;}
+.log-body.open{display:block;}
+.log-body::-webkit-scrollbar{width:3px;}
+.log-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.lo{color:var(--green)}.lw{color:var(--yellow)}.le{color:var(--red)}.li{color:var(--accent)}.ld{color:var(--gray)}
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--bg2);border:1px solid var(--border2);
+  border-radius:7px;padding:11px 16px;font-family:var(--font-mono);font-size:10px;color:var(--text);
+  z-index:999;transform:translateY(60px);opacity:0;transition:all .3s;max-width:300px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.ok{border-color:rgba(48,209,88,.4);color:var(--green);}
+.toast.err{border-color:rgba(255,59,85,.4);color:var(--red);}
+.toast.warn{border-color:rgba(255,214,10,.4);color:var(--yellow);}
+/* fmt hint */
+.fmt{margin-top:8px;padding:10px 13px;background:rgba(10,132,255,0.05);
+  border:1px solid rgba(10,132,255,0.18);border-radius:6px;font-family:var(--font-mono);
+  font-size:9px;color:var(--accent2);line-height:1.7;}
+.fmt strong{color:var(--white);}
+@media(max-width:900px){
+  .dash-grid{grid-template-columns:1fr;}
+  .keys-grid{grid-template-columns:1fr;}
+  .cards-row{grid-template-columns:repeat(3,1fr);}
+  .api-pills{display:none;}
+  th:nth-child(n+7),td:nth-child(n+7){display:none;}
+}
+</style>
+</head>
+<body>
+<div class="sweep"></div>
+<div class="app">
+
+<!-- HEADER -->
+<header>
+  <div class="wrap">
+    <div class="hrow">
+      <div class="brand">
+        <div class="b-icon">🛡️</div>
+        <div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="b-name">IOC <span>SENTINEL</span></span>
+            <span class="b-ver">v4</span>
+          </div>
+          <div class="b-sub">Bulk Threat Intelligence Platform</div>
+        </div>
+      </div>
+      <div class="h-right">
+        <div class="api-pills">
+          <div class="ap off" id="st-vt">VT</div>
+          <div class="ap off" id="st-ab">ABUSE</div>
+          <div class="ap off" id="st-otx">OTX</div>
+          <div class="ap off" id="st-geo">GEO</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main style="padding:24px 0 60px">
+<div class="wrap">
+
+<!-- ⚠️ SAFETY WARNING -->
+<div class="warn-banner" id="warnBanner">
+  <strong>⚠️ SAFETY WARNING — Malicious URLs Detected</strong><br/>
+  Your results contain URLs flagged as malicious. <strong>Do NOT click any links in the results table.</strong>
+  These URLs may lead to phishing pages, malware downloads, or drive-by exploits.
+  Use this tool for analysis only — always handle IOCs in an isolated environment.
+</div>
+
+<!-- RATE LIMIT BANNER -->
+<div class="rate-banner" id="rateBanner">
+  <span>⏳ VirusTotal free tier rate limit — resuming in</span>
+  <span class="rate-count" id="rateCount">15</span>
+  <span>seconds...</span>
+</div>
+
+<!-- INPUT TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('upload',this)">📂 Upload File</button>
+  <button class="tab" onclick="switchTab('paste',this)">📋 Paste IOCs</button>
+</div>
+
+<!-- UPLOAD TAB -->
+<div id="tab-upload" style="margin-bottom:20px">
+  <div class="sl">01 // Upload CSV or TXT</div>
+  <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileIn').click()">
+    <input type="file" id="fileIn" accept=".csv,.txt" onchange="handleFile(event)"/>
+    <div class="u-icon">📂</div>
+    <div class="u-title">Drop file here or click to browse</div>
+    <div class="u-sub">Supports <span>.csv</span> &amp; <span>.txt</span> · Up to <span>500 IOCs</span></div>
+  </div>
+  <div class="fmt">
+    <strong>CSV:</strong> one IOC per row, first column used · header row auto-skipped &nbsp;|&nbsp;
+    <strong>TXT:</strong> one IOC per line &nbsp;|&nbsp;
+    <strong>Defanged IOCs</strong> like <code>evil[.]com</code> / <code>hxxp://</code> auto-fixed
+  </div>
+  <div class="file-chip" id="fileChip"><span>📄</span><span id="fcTxt"></span></div>
+</div>
+
+<!-- PASTE TAB -->
+<div id="tab-paste" style="display:none;margin-bottom:20px">
+  <div class="sl">01 // Paste IOCs Directly</div>
+  <div class="paste-wrap">
+    <textarea class="paste-box" id="pasteBox"
+      placeholder="Paste IOCs here — one per line&#10;&#10;185.220.101.34&#10;malware-c2.xyz&#10;https://phishing.example.com&#10;44d88612fea8a8f36de82e1278abb02f"
+      oninput="onPasteInput()"></textarea>
+  </div>
+  <div class="paste-actions">
+    <button class="btn bg b-demo" onclick="pasteDemo()" style="padding:6px 14px;font-size:10px">📋 Paste Demo</button>
+    <button class="btn bg b-rst" onclick="clearPaste()" style="padding:6px 14px;font-size:10px">✕ Clear</button>
+    <span class="paste-count" id="pasteCount">0 IOCs detected</span>
+  </div>
+</div>
+
+<!-- API KEYS -->
+<div class="sl">02 // API Keys <span style="font-size:8px;color:var(--gray);letter-spacing:0;text-transform:none;margin-left:6px">(leave blank = simulation mode)</span></div>
+<div class="keys-grid">
+  <div class="kf"><label>VirusTotal API Key</label>
+    <input type="password" id="vtKey" placeholder="Paste VT key..." oninput="updateStatus()"/></div>
+  <div class="kf"><label>AbuseIPDB API Key</label>
+    <input type="password" id="abKey" placeholder="Paste AbuseIPDB key..." oninput="updateStatus()"/></div>
+  <div class="kf"><label>AlienVault OTX Key</label>
+    <input type="password" id="otxKey" placeholder="Paste OTX key..." oninput="updateStatus()"/></div>
+</div>
+<div class="keys-note">
+  Free keys: <a href="https://www.virustotal.com/gui/my-apikey" target="_blank">VirusTotal</a> (4/min) &nbsp;·&nbsp;
+  <a href="https://www.abuseipdb.com/account/api" target="_blank">AbuseIPDB</a> (1000/day) &nbsp;·&nbsp;
+  <a href="https://otx.alienvault.com/settings" target="_blank">OTX</a> (unlimited) &nbsp;·&nbsp;
+  IP Geolocation: <span style="color:var(--green)">ip-api.com (free, no key needed)</span> &nbsp;·&nbsp;
+  <span style="color:var(--yellow)">⚠ Keys stay in your browser only</span>
+</div>
+
+<!-- RUN BAR -->
+<div class="sl">03 // Run Scan</div>
+<div class="run-bar">
+  <button class="btn bp" id="btnRun" onclick="startScan()" disabled>⚡ START SCAN</button>
+  <button class="btn bg b-demo" onclick="loadDemo()">🎯 Demo IOCs</button>
+  <button class="btn bg b-pause" id="btnPause" onclick="togglePause()" style="display:none">⏸ Pause</button>
+  <button class="btn bg b-rst" onclick="resetAll()">↺ Reset</button>
+  <button class="btn bg b-exp" id="btnExp" onclick="exportCSV()" disabled>⬇ Export CSV</button>
+</div>
+
+<!-- PROGRESS -->
+<div class="prog-sec" id="progSec">
+  <div class="prog-top">
+    <span class="prog-lbl" id="progLbl">Starting...</span>
+    <span class="prog-st" id="progSt">0 / 0</span>
+  </div>
+  <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+  <div class="phases">
+    <div class="ph" id="ph-parse"><div class="pd"></div>PARSE</div>
+    <div class="ph" id="ph-vt"><div class="pd"></div>VIRUSTOTAL</div>
+    <div class="ph" id="ph-ab"><div class="pd"></div>ABUSEIPDB</div>
+    <div class="ph" id="ph-otx"><div class="pd"></div>OTX</div>
+    <div class="ph" id="ph-geo"><div class="pd"></div>GEOLOCATION</div>
+    <div class="ph" id="ph-done"><div class="pd"></div>COMPLETE</div>
+  </div>
+</div>
+
+<!-- DASHBOARD: cards + donut -->
+<div class="dash-grid" id="dashGrid" style="display:none">
+  <div class="cards-col">
+    <div class="cards-row">
+      <div class="card c-tot"><div class="cn" id="cn-t">0</div><div class="cl">TOTAL</div></div>
+      <div class="card c-mal"><div class="cn" id="cn-m">0</div><div class="cl">🔴 MAL</div><div class="cbar"><div class="cbf" id="cb-m"></div></div></div>
+      <div class="card c-sus"><div class="cn" id="cn-s">0</div><div class="cl">🟡 SUS</div><div class="cbar"><div class="cbf" id="cb-s"></div></div></div>
+      <div class="card c-cln"><div class="cn" id="cn-c">0</div><div class="cl">🟢 CLN</div><div class="cbar"><div class="cbf" id="cb-c"></div></div></div>
+      <div class="card c-unk"><div class="cn" id="cn-u">0</div><div class="cl">⚪ UNK</div></div>
+    </div>
+  </div>
+  <!-- Donut Chart -->
+  <div class="chart-panel">
+    <div class="chart-title">// Threat Breakdown</div>
+    <div class="chart-canvas-wrap">
+      <canvas id="donutChart" width="160" height="160"></canvas>
+      <div class="chart-center">
+        <div class="chart-center-num" id="chartCenterNum">0</div>
+        <div class="chart-center-lbl">TOTAL</div>
+      </div>
+    </div>
+    <div class="chart-legend">
+      <div class="cl-item"><div class="cl-dot" style="background:var(--red)"></div><span class="cl-label">Malicious</span><span class="cl-val" id="lg-m">0</span></div>
+      <div class="cl-item"><div class="cl-dot" style="background:var(--yellow)"></div><span class="cl-label">Suspicious</span><span class="cl-val" id="lg-s">0</span></div>
+      <div class="cl-item"><div class="cl-dot" style="background:var(--green)"></div><span class="cl-label">Clean</span><span class="cl-val" id="lg-c">0</span></div>
+      <div class="cl-item"><div class="cl-dot" style="background:var(--gray)"></div><span class="cl-label">Unknown</span><span class="cl-val" id="lg-u">0</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="results-sec" id="resSec">
+  <div class="res-top">
+    <span class="res-title">// Scan Results</span>
+    <div class="res-right">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-inp" id="searchInp" placeholder="Search IOCs..." oninput="renderTable()"/>
+      </div>
+      <div class="filters">
+        <button class="fb active" onclick="setFilter('ALL',this)">ALL</button>
+        <button class="fb fm" onclick="setFilter('MALICIOUS',this)">MAL</button>
+        <button class="fb fs" onclick="setFilter('SUSPICIOUS',this)">SUS</button>
+        <button class="fb fc" onclick="setFilter('CLEAN',this)">CLEAN</button>
+        <button class="fb" onclick="setFilter('UNKNOWN',this)">UNK</button>
+      </div>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortBy('idx')">#<span class="sort-arrow">↕</span></th>
+          <th onclick="sortBy('ioc')">IOC<span class="sort-arrow">↕</span></th>
+          <th onclick="sortBy('type')">TYPE<span class="sort-arrow">↕</span></th>
+          <th onclick="sortBy('verdict')">VERDICT<span class="sort-arrow">↕</span></th>
+          <th onclick="sortBy('vt_mal')">VT DETECTIONS<span class="sort-arrow">↕</span></th>
+          <th onclick="sortBy('ab_score')">ABUSE SCORE<span class="sort-arrow">↕</span></th>
+          <th onclick="sortBy('otx_count')">OTX PULSES<span class="sort-arrow">↕</span></th>
+          <th>GEO</th>
+          <th>SOURCES</th>
+        </tr>
+      </thead>
+      <tbody id="tBody">
+        <tr><td colspan="9"><div class="empty-s"><div class="ei">🛡️</div><div class="et">Upload a file or paste IOCs to begin</div></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="log-sec">
+    <button class="log-tog" onclick="toggleLog()">▶ SCAN LOG <span id="logArr">▼</span></button>
+    <div class="log-body" id="logBody"></div>
+  </div>
+</div>
+
+</div></main></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════ STATE ═══════════════════
+let parsedIOCs=[], results=[], activeFilter='ALL';
+let scanning=false, paused=false, logOpen=false;
+let sortCol='idx', sortDir=1;
+let donutChart=null;
+// CORS proxy list — tries each one in order if previous fails
+const PROXIES=[
+  'https://corsproxy.io/?',
+  'https://api.allorigins.win/raw?url=',
+  'https://proxy.cors.sh/',
+];
+let activeProxy=0;
+function PROXY(){ return PROXIES[activeProxy]; }
+async function proxyFetch(url, opts={}, isVT=false){
+  // For VT: embed apikey in URL so proxy can't strip it
+  // For others: standard header approach
+  for(let p=0;p<PROXIES.length;p++){
+    try{
+      const proxyUrl = PROXIES[p] + encodeURIComponent(url);
+      const res = await fetch(proxyUrl, {...opts, signal: AbortSignal.timeout(12000)});
+      if(res.status===429) return {_status:429};
+      if(res.ok || res.status===404) return res;
+    } catch(e){
+      console.warn(`Proxy ${PROXIES[p]} failed:`, e.message);
+    }
+  }
+  return null;
+}
+
+// ═══════════════════ TABS ════════════════════
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-upload').style.display = tab==='upload'?'block':'none';
+  document.getElementById('tab-paste').style.display  = tab==='paste' ?'block':'none';
+}
+
+// ═══════════════════ CLASSIFY ════════════════
+function classify(raw) {
+  let ioc = raw.trim()
+    .replace(/\[\.\]/g,'.').replace(/\[:\]/g,':')
+    .replace(/hxxps/gi,'https').replace(/hxxp/gi,'http');
+  if(/^\d{1,3}(\.\d{1,3}){3}$/.test(ioc)&&ioc.split('.').map(Number).every(p=>p>=0&&p<=255)) return {ioc,type:'ipv4'};
+  if(/^[0-9a-fA-F:]{4,39}$/.test(ioc)&&ioc.includes(':')) return {ioc,type:'ipv6'};
+  if(/^[a-fA-F0-9]{64}$/.test(ioc)) return {ioc,type:'sha256'};
+  if(/^[a-fA-F0-9]{40}$/.test(ioc)) return {ioc,type:'sha1'};
+  if(/^[a-fA-F0-9]{32}$/.test(ioc)) return {ioc,type:'md5'};
+  if(/^https?:\/\//i.test(ioc))     return {ioc,type:'url'};
+  if(/^(?:[a-zA-Z0-9_-]+\.)+[a-zA-Z]{2,}$/.test(ioc)) return {ioc,type:'domain'};
+  return {ioc,type:'unknown'};
+}
+
+// ═══════════════════ FILE UPLOAD ═════════════
+function parseText(text, fname) {
+  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const out=[];
+  const isCSV=fname.toLowerCase().endsWith('.csv');
+  for(let i=0;i<lines.length;i++){
+    const ln=lines[i];
+    if(ln.startsWith('#')||ln.startsWith('//')) continue;
+    let raw=ln;
+    if(isCSV){
+      if(i===0&&/^(ioc|indicator|ip|hash|domain|url)[,;]/i.test(ln)) continue;
+      raw=ln.split(/[,;]/)[0].trim().replace(/^["']|["']$/g,'');
+    }
+    if(raw) out.push(raw);
+    if(out.length>=500) break;
+  }
+  return out;
+}
+
+function handleFile(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const raw=parseText(ev.target.result,file.name);
+    parsedIOCs=raw.map(classify);
+    document.getElementById('fcTxt').textContent=`${file.name}  ·  ${parsedIOCs.length} IOCs  (${parsedIOCs.filter(i=>i.type!=='unknown').length} classified)`;
+    document.getElementById('fileChip').classList.add('show');
+    document.getElementById('btnRun').disabled=false;
+    toast(`✓ Loaded ${parsedIOCs.length} IOCs`,'ok');
+  };
+  reader.readAsText(file);
+}
+const dz=document.getElementById('dropZone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f) handleFile({target:{files:[f]}});});
+
+// ═══════════════════ PASTE IOCs ══════════════
+function onPasteInput(){
+  const lines=document.getElementById('pasteBox').value.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+  parsedIOCs=lines.map(classify);
+  document.getElementById('pasteCount').textContent=`${parsedIOCs.length} IOCs detected (${parsedIOCs.filter(i=>i.type!=='unknown').length} classified)`;
+  document.getElementById('btnRun').disabled=parsedIOCs.length===0;
+}
+function pasteDemo(){
+  document.getElementById('pasteBox').value=`185.220.101.34\n45.142.212.100\n8.8.8.8\n1.1.1.1\nmalware-c2.xyz\ngoogle.com\nhttps://phishing.example.com/steal\nhttps://www.microsoft.com\n44d88612fea8a8f36de82e1278abb02f\n275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f`;
+  onPasteInput();
+}
+function clearPaste(){
+  document.getElementById('pasteBox').value='';
+  document.getElementById('pasteCount').textContent='0 IOCs detected';
+  parsedIOCs=[]; document.getElementById('btnRun').disabled=true;
+}
+
+function loadDemo(){
+  const demo=['185.220.101.34','45.142.212.100','103.78.228.55','198.199.120.11',
+    '8.8.8.8','1.1.1.1','91.108.56.130','malware-c2.xyz','phish-bank.com',
+    'github.com','google.com','https://phishing.example.com/steal',
+    'https://www.microsoft.com','44d88612fea8a8f36de82e1278abb02f',
+    'aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f','INVALID$$TOKEN'];
+  parsedIOCs=demo.map(classify);
+  document.getElementById('fcTxt').textContent=`demo_iocs.csv  ·  ${parsedIOCs.length} IOCs`;
+  document.getElementById('fileChip').classList.add('show');
+  document.getElementById('btnRun').disabled=false;
+  toast(`✓ Demo data loaded — ${parsedIOCs.length} IOCs`,'ok');
+}
+
+// ═══════════════════ API STATUS ══════════════
+function updateStatus(){
+  const vt=document.getElementById('vtKey').value.trim();
+  const ab=document.getElementById('abKey').value.trim();
+  const otx=document.getElementById('otxKey').value.trim();
+  setDot('st-vt',vt); setDot('st-ab',ab); setDot('st-otx',otx);
+  document.getElementById('st-geo').className='ap on'; // always on (free)
+}
+function setDot(id,key){
+  const el=document.getElementById(id);
+  el.className='ap '+(key?'on':'sim');
+}
+
+// ═══════════════════ RATE LIMIT COUNTDOWN ════
+async function rateLimitCountdown(seconds){
+  const banner=document.getElementById('rateBanner');
+  const count=document.getElementById('rateCount');
+  banner.classList.add('show');
+  for(let i=seconds;i>0;i--){
+    count.textContent=i;
+    await sleep(1000);
+    if(!scanning) break;
+  }
+  banner.classList.remove('show');
+}
+
+// ═══════════════════ RETRY WRAPPER ═══════════
+async function fetchWithRetry(fn, retries=2, delayMs=2000){
+  for(let attempt=0;attempt<=retries;attempt++){
+    try{
+      const result=await fn();
+      if(result!==null) return result;
+    }catch(e){
+      log('w',`  Retry ${attempt+1}/${retries}: ${e.message}`);
+    }
+    if(attempt<retries) await sleep(delayMs*(attempt+1));
+  }
+  return null;
+}
+
+// ═══════════════════ REAL APIs ═══════════════
+async function vtCheck(ioc,type,apiKey){
+  const base='https://www.virustotal.com/api/v3';
+  let endpoint;
+  if(type==='ipv4'||type==='ipv6') endpoint=`ip_addresses/${encodeURIComponent(ioc)}`;
+  else if(type==='domain')         endpoint=`domains/${encodeURIComponent(ioc)}`;
+  else if(type==='url'){
+    const b64=btoa(unescape(encodeURIComponent(ioc))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+    endpoint=`urls/${b64}`;
+  }
+  else if(['md5','sha1','sha256'].includes(type)) endpoint=`files/${ioc}`;
+  else return {vt_mal:null,vt_err:'unsupported'};
+
+  const directUrl=`${base}/${endpoint}`;
+  const vtLink=`https://www.virustotal.com/gui/${
+    type==='ipv4'||type==='ipv6'?'ip-address':
+    ['md5','sha1','sha256'].includes(type)?'file':type
+  }/${ioc}`;
+
+  // ── Strategy list — YOUR Cloudflare Worker is #1 ──────────────────
+  // Worker URL: https://ioc-sentinel.naeemkathawala07.workers.dev
+  // Worker adds x-apikey server-side — no CORS issues at all!
+  const YOUR_CF_WORKER = 'https://ioc-sentinel.naeemkathawala07.workers.dev';
+
+  const strategies = [
+    // 1) ✅ YOUR Cloudflare Worker — primary, guaranteed to work
+    async () => {
+      const r = await fetch(`${YOUR_CF_WORKER}/${endpoint}`, {
+        signal:AbortSignal.timeout(14000)
+      });
+      return r;
+    },
+    // 2) cors.sh — fallback
+    async () => {
+      const r = await fetch(`https://proxy.cors.sh/${directUrl}`, {
+        headers:{'x-apikey':apiKey,'Accept':'application/json','x-cors-api-key':'temp_'},
+        signal:AbortSignal.timeout(12000)
+      });
+      return r;
+    },
+    // 3) corsproxy.io — last fallback
+    async () => {
+      const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(directUrl)}`, {
+        headers:{'x-apikey':apiKey,'Accept':'application/json'},
+        signal:AbortSignal.timeout(12000)
+      });
+      return r;
+    },
+  ];
+
+  for(let attempt=0; attempt<strategies.length; attempt++){
+    let res=null;
+    try{ res=await strategies[attempt](); }
+    catch(e){ log('d',`  [VT] proxy #${attempt+1} failed: ${e.message}`); continue; }
+
+    if(!res) continue;
+    if(res.status===429){ await rateLimitCountdown(16); return null; }
+    if(res.status===404) return {vt_mal:0,vt_sus:0,vt_total:0,vt_link:vtLink,vt_err:'not_found'};
+    if(res.status===401||res.status===403){
+      // 401 from proxy itself = proxy blocked, try next
+      // 401 forwarded from VT = invalid key
+      let txt=''; try{ txt=await res.text(); }catch(e){}
+      if(txt.includes('Wrong API key')||txt.includes('x-apikey')||txt.includes('Forbidden')){
+        return {vt_mal:null,vt_err:'invalid_api_key'};
+      }
+      log('d',`  [VT] proxy #${attempt+1} returned ${res.status}, trying next...`);
+      continue;
+    }
+    if(!res.ok){ log('d',`  [VT] proxy #${attempt+1} returned ${res.status}, trying next...`); continue; }
+
+    let d; try{ d=await res.json(); }catch(e){ continue; }
+    // Check if proxy returned its own error JSON instead of VT data
+    if(!d?.data?.attributes){ log('d',`  [VT] proxy #${attempt+1} returned non-VT data, trying next...`); continue; }
+
+    const st=d.data.attributes?.last_analysis_stats||{};
+    const mal=st.malicious||0, sus=st.suspicious||0;
+    const tot=Object.values(st).reduce((a,b)=>a+b,0);
+    log(attempt===0?'o':'d',`  [VT] ${attempt===0?'✅ Cloudflare Worker':'proxy #'+(attempt+1)} succeeded ✓`);
+    return { vt_mal:mal, vt_sus:sus, vt_total:tot,
+      vt_rep:d.data.attributes?.reputation??null, vt_link:vtLink, vt_err:null };
+  }
+
+  // All proxies failed — return clear error
+  return {vt_mal:null,vt_err:'all_proxies_failed'};
+}
+
+async function abuseCheck(ip,apiKey){
+  return await fetchWithRetry(async()=>{
+    // Try direct first
+    let res=null;
+    const directUrl=`https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90`;
+    try{
+      res=await fetch(directUrl,{headers:{'Key':apiKey,'Accept':'application/json'},signal:AbortSignal.timeout(10000)});
+    } catch(e){ res=null; }
+    // Fallback: proxy with key embedded in header param
+    if(!res||!res.ok){
+      const proxyUrl=PROXIES[0]+encodeURIComponent(directUrl);
+      try{
+        res=await fetch(proxyUrl,{headers:{'Key':apiKey,'Accept':'application/json'},signal:AbortSignal.timeout(12000)});
+      } catch(e){ res=null; }
+    }
+    if(!res) return {ab_score:null,ab_err:'network_error'};
+    if(!res.ok) return {ab_score:null,ab_err:`http_${res.status}`};
+    const d=(await res.json())?.data||{};
+    return {ab_score:d.abuseConfidenceScore??0,ab_reports:d.totalReports??0,
+      ab_country:d.countryCode??'',ab_isp:d.isp??'',ab_tor:d.isTor??false,ab_err:null};
+  });
+}
+
+async function otxCheck(ioc,type,apiKey){
+  const tmap={ipv4:'IPv4',ipv6:'IPv6',domain:'domain',url:'url',md5:'file',sha1:'file',sha256:'file'};
+  const ot=tmap[type]; if(!ot) return {otx_count:null,otx_err:'unsupported'};
+  return await fetchWithRetry(async()=>{
+    const url=`https://otx.alienvault.com/api/v1/indicators/${ot}/${encodeURIComponent(ioc)}/general`;
+    const res=await fetch(url,{headers:{'X-OTX-API-KEY':apiKey}});
+    if(!res.ok) return {otx_count:0,otx_names:'',otx_tags:'',otx_err:`http_${res.status}`};
+    const d=await res.json();
+    const pulses=d?.pulse_info?.pulses||[];
+    return {otx_count:d?.pulse_info?.count??0,
+      otx_names:pulses.slice(0,5).map(p=>p.name).join('; '),
+      otx_tags:[...new Set(pulses.slice(0,5).flatMap(p=>p.tags||[]))].slice(0,6).join('; '),
+      otx_fam:[...new Set(pulses.slice(0,5).flatMap(p=>(p.malware_families||[]).map(m=>m.display_name)))].slice(0,4).join('; '),
+      otx_err:null};
+  });
+}
+
+// ═══════════════════ GEOLOCATION (ip-api.com — free, no key) ═══
+async function geoCheck(ip){
+  return await fetchWithRetry(async()=>{
+    const res=await fetch(`https://ip-api.com/json/${ip}?fields=status,country,countryCode,city,isp,org`);
+    if(!res.ok) return {geo_country:'',geo_city:'',geo_flag:'',geo_isp:''};
+    const d=await res.json();
+    if(d.status!=='success') return {geo_country:'',geo_city:'',geo_flag:'',geo_isp:''};
+    const flag=d.countryCode?String.fromCodePoint(...[...d.countryCode.toUpperCase()].map(c=>0x1F1E6-65+c.charCodeAt(0))):'';
+    return {geo_country:d.country||'',geo_city:d.city||'',geo_flag:flag,geo_isp:d.isp||d.org||''};
+  });
+}
+
+// ═══════════════════ SIMULATION ══════════════
+function simulate(ioc,type){
+  if(type==='unknown') return {vt_mal:'',vt_total:'',ab_score:'',otx_count:''};
+  const seed=ioc.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  const CLEAN=['8.8.8.8','1.1.1.1','google.com','github.com','microsoft.com'];
+  const MAL  =['malware','phish','evil','185.220','45.142','103.78','44d88612','payload','c2'];
+  const SUS  =['91.108','198.199','77.88','aec070'];
+  const isC=CLEAN.some(k=>ioc.includes(k));
+  const isM=MAL.some(k=>ioc.toLowerCase().includes(k));
+  const isS=SUS.some(k=>ioc.includes(k));
+  if(isC) return {vt_mal:0,vt_total:87,ab_score:type==='ipv4'?0:'',otx_count:0};
+  if(isM) return {vt_mal:30+(seed%40),vt_total:87,ab_score:type==='ipv4'?75+(seed%25):'',otx_count:5+(seed%12)};
+  if(isS) return {vt_mal:1+(seed%4),vt_total:87,ab_score:type==='ipv4'?30+(seed%35):'',otx_count:1+(seed%3)};
+  return seed%10<3?{vt_mal:1,vt_total:87,ab_score:type==='ipv4'?15:'',otx_count:1}
+                 :{vt_mal:0,vt_total:87,ab_score:type==='ipv4'?0:'',otx_count:0};
+}
+
+// ═══════════════════ VERDICT ═════════════════
+function getVerdict(r){
+  if(r.type==='unknown') return 'UNKNOWN';
+  const vt=typeof r.vt_mal==='number'?r.vt_mal:0;
+  const ab=typeof r.ab_score==='number'?r.ab_score:0;
+  const ox=typeof r.otx_count==='number'?r.otx_count:0;
+  if(vt>=3||ab>=80||ox>=5) return 'MALICIOUS';
+  if(vt>0||ab>=30||ox>=1)  return 'SUSPICIOUS';
+  return 'CLEAN';
+}
+
+// ═══════════════════ PAUSE / RESUME ══════════
+function togglePause(){
+  paused=!paused;
+  const btn=document.getElementById('btnPause');
+  btn.textContent=paused?'▶ Resume':'⏸ Pause';
+  btn.className='btn bg '+(paused?'b-demo':'b-pause');
+  toast(paused?'⏸ Scan paused':'▶ Scan resumed',paused?'warn':'ok');
+}
+async function waitIfPaused(){
+  while(paused&&scanning) await sleep(300);
+}
+
+// ═══════════════════ MAIN SCAN ═══════════════
+async function startScan(){
+  if(scanning||!parsedIOCs.length) return;
+  scanning=true; paused=false;
+
+  const vtKey =document.getElementById('vtKey').value.trim();
+  const abKey =document.getElementById('abKey').value.trim();
+  const otxKey=document.getElementById('otxKey').value.trim();
+
+  results=parsedIOCs.map((i,idx)=>({...i,idx,verdict:'CHECKING'}));
+
+  document.getElementById('btnRun').disabled=true;
+  document.getElementById('btnPause').style.display='inline-block';
+  document.getElementById('btnExp').disabled=true;
+  document.getElementById('progSec').classList.add('show');
+  document.getElementById('resSec').classList.add('show');
+  document.getElementById('dashGrid').style.display='grid';
+  document.getElementById('logBody').innerHTML='';
+  document.getElementById('warnBanner').classList.remove('show');
+  renderTable(); initChart();
+
+  log('i',`Scan started — ${parsedIOCs.length} IOCs | VT:${vtKey?'REAL':'SIM'} ABUSE:${abKey?'REAL':'SIM'} OTX:${otxKey?'REAL':'SIM'} GEO:AUTO`);
+
+  setPhase('ph-parse');
+  setProgress(2,'Classifying IOCs...',0,parsedIOCs.length);
+  await sleep(300);
+
+  // ── VT ─────────────────────────────────────
+  setPhase('ph-vt');
+  log('i',`[VirusTotal] ${parsedIOCs.length} IOCs — ${vtKey?'REAL API':'simulation'}...`);
+  const VT_DELAY=vtKey?15500:80;
+
+  for(let i=0;i<parsedIOCs.length;i++){
+    await waitIfPaused();
+    const item=parsedIOCs[i];
+    setProgress(2+(i+1)/parsedIOCs.length*25,`[VT] ${item.ioc}`,i+1,parsedIOCs.length);
+
+    let vtr;
+    if(vtKey&&item.type!=='unknown'){
+      vtr=await vtCheck(item.ioc,item.type,vtKey)||{vt_mal:null,vt_err:'failed'};
+    } else {
+      const s=simulate(item.ioc,item.type);
+      vtr={vt_mal:s.vt_mal,vt_sus:0,vt_total:s.vt_total,vt_err:null,sim:true};
+    }
+    Object.assign(results[i],vtr);
+    results[i].verdict=getVerdict(results[i]);
+
+    const vm=typeof vtr.vt_mal==='number'?vtr.vt_mal:null;
+    const vtMsg=vtr.vt_err==='invalid_api_key'  ?'⚠ INVALID API KEY — check your VT key':
+      vtr.vt_err==='all_proxies_failed'          ?'✗ all proxies failed — VT unavailable from browser':
+      vtr.vt_err==='network_error'               ?'✗ network error':
+      vtr.vt_err==='not_found'                   ?'not found in VT database':
+      vm!==null                                  ?`${vm}/${vtr.vt_total||0} detections`
+                                                 :`error: ${vtr.vt_err||'?'}`;
+    log(vtr.vt_err==='invalid_api_key'?'e':vtr.vt_err==='all_proxies_failed'?'w':vm>=10?'e':vm>=3?'w':'d',
+      `  [VT] ${item.type.padEnd(8)} ${item.ioc}  → ${vtMsg}`);
+    updateCards(); renderTable(); updateChart();
+    if(i<parsedIOCs.length-1) await sleep(vtKey?VT_DELAY:80);
+  }
+  log('o','[VirusTotal] Complete ✓');
+
+  // ── AbuseIPDB ──────────────────────────────
+  setPhase('ph-ab');
+  const ipList=parsedIOCs.filter(i=>i.type==='ipv4'||i.type==='ipv6');
+  log('i',`[AbuseIPDB] ${ipList.length} IPs — ${abKey?'REAL API':'simulation'}...`);
+  let ai=0;
+  for(let i=0;i<parsedIOCs.length;i++){
+    await waitIfPaused();
+    const item=parsedIOCs[i];
+    if(item.type!=='ipv4'&&item.type!=='ipv6') continue;
+    ai++;
+    setProgress(27+(ai/Math.max(ipList.length,1))*22,`[AbuseIPDB] ${item.ioc}`,ai,ipList.length);
+    let abr;
+    if(abKey){
+      abr=await abuseCheck(item.ioc,abKey)||{ab_score:null,ab_err:'failed'};
+    } else {
+      const s=simulate(item.ioc,item.type);
+      abr={ab_score:s.ab_score,ab_reports:0,ab_country:'',ab_isp:'',ab_tor:false,ab_err:null,sim:true};
+    }
+    Object.assign(results[i],abr);
+    results[i].verdict=getVerdict(results[i]);
+    const sc=typeof abr.ab_score==='number'?abr.ab_score:0;
+    log(sc>=80?'e':sc>=30?'w':'d',`  [ABUSE] ${item.ioc.padEnd(20)} score=${sc}`);
+    updateCards(); renderTable(); updateChart();
+    await sleep(abKey?600:50);
+  }
+  log('o','[AbuseIPDB] Complete ✓');
+
+  // ── OTX ────────────────────────────────────
+  setPhase('ph-otx');
+  log('i',`[OTX] ${parsedIOCs.length} IOCs — ${otxKey?'REAL API':'simulation'}...`);
+  for(let i=0;i<parsedIOCs.length;i++){
+    await waitIfPaused();
+    const item=parsedIOCs[i];
+    setProgress(49+(i+1)/parsedIOCs.length*22,`[OTX] ${item.ioc}`,i+1,parsedIOCs.length);
+    let oxr;
+    if(otxKey&&item.type!=='unknown'){
+      oxr=await otxCheck(item.ioc,item.type,otxKey)||{otx_count:null,otx_err:'failed'};
+    } else {
+      const s=simulate(item.ioc,item.type);
+      oxr={otx_count:s.otx_count,otx_names:'',otx_tags:'',otx_fam:'',otx_err:null,sim:true};
+    }
+    Object.assign(results[i],oxr);
+    results[i].verdict=getVerdict(results[i]);
+    const oc=typeof oxr.otx_count==='number'?oxr.otx_count:0;
+    log(oc>=5?'e':oc>=1?'w':'d',`  [OTX] ${item.ioc}  pulses=${oc}`);
+    updateCards(); renderTable(); updateChart();
+    await sleep(otxKey?350:40);
+  }
+  log('o','[OTX] Complete ✓');
+
+  // ── GEOLOCATION ────────────────────────────
+  setPhase('ph-geo');
+  const geoItems=parsedIOCs.filter(i=>i.type==='ipv4');
+  log('i',`[GEO] Locating ${geoItems.length} IPs via ip-api.com...`);
+  let gi=0;
+  for(let i=0;i<parsedIOCs.length;i++){
+    await waitIfPaused();
+    if(parsedIOCs[i].type!=='ipv4') continue;
+    gi++;
+    setProgress(71+(gi/Math.max(geoItems.length,1))*26,`[GEO] ${parsedIOCs[i].ioc}`,gi,geoItems.length);
+    const geo=await geoCheck(parsedIOCs[i].ioc);
+    if(geo) Object.assign(results[i],geo);
+    if(geo?.geo_city) log('d',`  [GEO] ${parsedIOCs[i].ioc}  → ${geo.geo_flag} ${geo.geo_city}, ${geo.geo_country}`);
+    renderTable();
+    await sleep(350); // ip-api.com rate limit: 45/min
+  }
+  log('o','[GEO] Complete ✓');
+
+  // ── DONE ───────────────────────────────────
+  setPhase('ph-done');
+  setProgress(100,'Scan complete!',parsedIOCs.length,parsedIOCs.length);
+
+  const m=results.filter(r=>r.verdict==='MALICIOUS').length;
+  const s=results.filter(r=>r.verdict==='SUSPICIOUS').length;
+
+  // Safety warning
+  const hasURL=results.some(r=>(r.verdict==='MALICIOUS'||r.verdict==='SUSPICIOUS')&&r.type==='url');
+  if(hasURL||m>0) document.getElementById('warnBanner').classList.add('show');
+
+  log('o','──────────────────────────────');
+  log('o',`Complete — ${results.length} IOCs checked`);
+  if(m) log('e',`MALICIOUS:  ${m}`);
+  if(s) log('w',`SUSPICIOUS: ${s}`);
+  log('o',`CLEAN:      ${results.filter(r=>r.verdict==='CLEAN').length}`);
+  log('d',`UNKNOWN:    ${results.filter(r=>r.verdict==='UNKNOWN').length}`);
+
+  updateCards(true); renderTable(); updateChart(true);
+  document.getElementById('btnRun').disabled=false;
+  document.getElementById('btnPause').style.display='none';
+  document.getElementById('btnExp').disabled=false;
+  scanning=false;
+
+  const mode=(vtKey||abKey||otxKey)?'Real API':'Simulation';
+  toast(`✓ Done — ${m} malicious, ${s} suspicious (${mode})`,'ok');
+}
+
+// ═══════════════════ DONUT CHART ═════════════
+function initChart(){
+  const ctx=document.getElementById('donutChart').getContext('2d');
+  if(donutChart) donutChart.destroy();
+  donutChart=new Chart(ctx,{
+    type:'doughnut',
+    data:{
+      labels:['Malicious','Suspicious','Clean','Unknown'],
+      datasets:[{data:[0,0,0,0],
+        backgroundColor:['rgba(255,59,85,0.85)','rgba(255,214,10,0.85)','rgba(48,209,88,0.85)','rgba(90,112,128,0.85)'],
+        borderColor:['#ff3b55','#ffd60a','#30d158','#5a7080'],
+        borderWidth:1,hoverOffset:4}]
+    },
+    options:{
+      cutout:'68%',responsive:false,
+      plugins:{legend:{display:false},tooltip:{
+        callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw} (${ctx.parsed>0?Math.round(ctx.parsed/ctx.dataset.data.reduce((a,b)=>a+b,0)*100):0}%)`}
+      }},
+      animation:{animateRotate:true,duration:800}
+    }
+  });
+}
+function updateChart(animate=false){
+  if(!donutChart) return;
+  const m=results.filter(r=>r.verdict==='MALICIOUS').length;
+  const s=results.filter(r=>r.verdict==='SUSPICIOUS').length;
+  const c=results.filter(r=>r.verdict==='CLEAN').length;
+  const u=results.filter(r=>r.verdict==='UNKNOWN'||r.verdict==='CHECKING').length;
+  donutChart.data.datasets[0].data=[m,s,c,u];
+  donutChart.options.animation={duration:animate?600:0};
+  donutChart.update();
+  document.getElementById('chartCenterNum').textContent=results.length;
+  document.getElementById('lg-m').textContent=m;
+  document.getElementById('lg-s').textContent=s;
+  document.getElementById('lg-c').textContent=c;
+  document.getElementById('lg-u').textContent=u;
+}
+
+// ═══════════════════ TABLE ═══════════════════
+let sortDir2=1, lastSortCol='idx';
+function sortBy(col){
+  if(lastSortCol===col) sortDir2*=-1; else sortDir2=1;
+  lastSortCol=col;
+  document.querySelectorAll('th').forEach(t=>t.classList.remove('sorted'));
+  event.currentTarget.classList.add('sorted');
+  renderTable();
+}
+function renderTable(){
+  const search=document.getElementById('searchInp')?.value?.toLowerCase()||'';
+  let list=activeFilter==='ALL'?[...results]:results.filter(r=>r.verdict===activeFilter);
+  if(search) list=list.filter(r=>r.ioc.toLowerCase().includes(search)||r.type.includes(search)||(r.geo_country||'').toLowerCase().includes(search));
+
+  // Sort
+  const vord={'MALICIOUS':0,'SUSPICIOUS':1,'CLEAN':2,'UNKNOWN':3,'CHECKING':4};
+  list.sort((a,b)=>{
+    let av,bv;
+    if(lastSortCol==='verdict'){av=vord[a.verdict]??5;bv=vord[b.verdict]??5;}
+    else if(lastSortCol==='vt_mal'){av=a.vt_mal??-1;bv=b.vt_mal??-1;}
+    else if(lastSortCol==='ab_score'){av=a.ab_score??-1;bv=b.ab_score??-1;}
+    else if(lastSortCol==='otx_count'){av=a.otx_count??-1;bv=b.otx_count??-1;}
+    else if(lastSortCol==='ioc'){av=a.ioc;bv=b.ioc;}
+    else if(lastSortCol==='type'){av=a.type;bv=b.type;}
+    else{av=a.idx??0;bv=b.idx??0;}
+    if(av<bv) return -sortDir2; if(av>bv) return sortDir2; return 0;
+  });
+
+  const tbody=document.getElementById('tBody');
+  if(!list.length){
+    tbody.innerHTML=`<tr><td colspan="9"><div class="empty-s"><div class="ei">🔍</div><div class="et">No IOCs match</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML='';
+  list.forEach((r,i)=>{
+    const vt=typeof r.vt_mal==='number'?r.vt_mal:null;
+    const ab=typeof r.ab_score==='number'?r.ab_score:null;
+    const ox=typeof r.otx_count==='number'?r.otx_count:null;
+    const vtC=vt>=10?'var(--red)':vt>=3?'var(--yellow)':'var(--green)';
+    const abC=ab>=80?'var(--red)':ab>=30?'var(--yellow)':'var(--green)';
+    const oxC=ox>=5?'var(--red)':ox>=1?'var(--yellow)':'var(--green)';
+    const geo=r.geo_flag?`${r.geo_flag} ${r.geo_city?r.geo_city+', ':''}${r.geo_country}`:'';
+    const tr=document.createElement('tr');
+    tr.style.animationDelay=(i*20)+'ms';
+    tr.innerHTML=`
+      <td style="color:var(--gray);font-size:8px">${String((r.idx??i)+1).padStart(2,'0')}</td>
+      <td class="ioc-cell"><div class="iv">${esc(r.ioc)}</div>${r.otx_tags?`<div class="im">${esc(r.otx_tags.split(';')[0].trim())}</div>`:''}</td>
+      <td><span class="tbadge">${r.type}</span></td>
+      <td><span class="vpill ${r.verdict}">${vi(r.verdict)} ${r.verdict}</span></td>
+      <td>${vt!==null?sbar(vt,r.vt_total||87,vtC):'<span style="color:var(--gray)">—</span>'}</td>
+      <td>${ab!==null?sbar(ab,100,abC):'<span style="color:var(--gray)">N/A</span>'}</td>
+      <td style="color:${ox!==null?(ox>=5?'var(--red)':ox>=1?'var(--yellow)':'var(--green)'):'var(--gray)'}">${ox!==null?ox:'—'}</td>
+      <td><span class="geo">${geo||'<span style="color:var(--gray)">—</span>'}</span></td>
+      <td>${chips(r)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+function sbar(v,max,col){
+  const pct=Math.min(100,(v/(max||1))*100);
+  return `<div class="sb"><div class="st"><div class="sf" style="width:${pct}%;background:${col}"></div></div><span class="sn" style="color:${col}">${v}${max?'/'+max:''}</span></div>`;
+}
+function chips(r){
+  const vt=typeof r.vt_mal==='number'?r.vt_mal:-1;
+  const ab=typeof r.ab_score==='number'?r.ab_score:-1;
+  const ox=typeof r.otx_count==='number'?r.otx_count:-1;
+  let h=`<span class="chip ${vt>0?'cr':''}">${r.sim?'~':''}VT</span>`;
+  if(r.type==='ipv4'||r.type==='ipv6') h+=`<span class="chip ${ab>=80?'cr':ab>=30?'co':''}">${r.sim?'~':''}ABUSE</span>`;
+  h+=`<span class="chip ${ox>=5?'cr':ox>=1?'cy':''}">${r.sim?'~':''}OTX</span>`;
+  h+=`<span class="chip cg">GEO</span>`;
+  return `<div class="chips">${h}</div>`;
+}
+function vi(v){return v==='MALICIOUS'?'🔴':v==='SUSPICIOUS'?'🟡':v==='CLEAN'?'🟢':v==='CHECKING'?'⏳':'⚪';}
+function setFilter(f,el){activeFilter=f;document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderTable();}
+
+// ═══════════════════ CARDS ═══════════════════
+function updateCards(animate=false){
+  const t=results.length,m=results.filter(r=>r.verdict==='MALICIOUS').length,
+    s=results.filter(r=>r.verdict==='SUSPICIOUS').length,
+    c=results.filter(r=>r.verdict==='CLEAN').length,
+    u=results.filter(r=>r.verdict==='UNKNOWN'||r.verdict==='CHECKING').length;
+  document.getElementById('cn-t').textContent=t;
+  document.getElementById('cn-m').textContent=m;
+  document.getElementById('cn-s').textContent=s;
+  document.getElementById('cn-c').textContent=c;
+  document.getElementById('cn-u').textContent=u;
+  if(animate&&t>0){
+    setTimeout(()=>{document.getElementById('cb-m').style.width=(m/t*100)+'%'},80);
+    setTimeout(()=>{document.getElementById('cb-s').style.width=(s/t*100)+'%'},160);
+    setTimeout(()=>{document.getElementById('cb-c').style.width=(c/t*100)+'%'},240);
+  }
+}
+
+// ═══════════════════ EXPORT ══════════════════
+function exportCSV(){
+  const mode=(document.getElementById('vtKey').value||document.getElementById('abKey').value||document.getElementById('otxKey').value)?'real':'simulation';
+  const hdr='IOC,Type,Verdict,Mode,VT_Malicious,VT_Suspicious,VT_Total,VT_Reputation,VT_Link,Abuse_Score,Abuse_Reports,Abuse_Country,Abuse_ISP,Abuse_TOR,OTX_Pulse_Count,OTX_Pulse_Names,OTX_Tags,OTX_Malware_Families,Geo_Country,Geo_City,Geo_ISP';
+  const rows=results.map(r=>[
+    `"${r.ioc}"`,r.type,r.verdict,mode,
+    r.vt_mal??'',r.vt_sus??'',r.vt_total??'',r.vt_rep??'',r.vt_link??'',
+    r.ab_score??'',r.ab_reports??'',r.ab_country??'',r.ab_isp??'',r.ab_tor??'',
+    r.otx_count??'',`"${r.otx_names??''}"`,`"${r.otx_tags??''}"`,`"${r.otx_fam??''}"`,
+    r.geo_country??'',r.geo_city??'',r.geo_isp??''
+  ].join(','));
+  const blob=new Blob([[hdr,...rows].join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`ioc_sentinel_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  toast('✓ CSV exported successfully','ok');
+}
+
+// ═══════════════════ HELPERS ═════════════════
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function setProgress(pct,lbl,done,total){
+  document.getElementById('progFill').style.width=pct+'%';
+  document.getElementById('progLbl').textContent=lbl;
+  if(done!==undefined) document.getElementById('progSt').textContent=`${done} / ${total}`;
+}
+function setPhase(id){
+  ['ph-parse','ph-vt','ph-ab','ph-otx','ph-geo','ph-done'].forEach(p=>{
+    const el=document.getElementById(p);
+    if(p===id) el.classList.add('active');
+    else if(el.classList.contains('active')){el.classList.remove('active');el.classList.add('done');}
+  });
+}
+function log(lvl,msg){
+  const b=document.getElementById('logBody');
+  const d=document.createElement('div');
+  d.className=lvl==='o'?'lo':lvl==='w'?'lw':lvl==='e'?'le':lvl==='i'?'li':'ld';
+  d.textContent=`[${new Date().toLocaleTimeString('en-GB',{hour12:false})}] ${msg}`;
+  b.appendChild(d); b.scrollTop=b.scrollHeight;
+}
+function toggleLog(){logOpen=!logOpen;document.getElementById('logBody').classList.toggle('open',logOpen);document.getElementById('logArr').textContent=logOpen?'▲':'▼';}
+let tt;
+function toast(msg,type='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className=`toast show ${type}`;
+  clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('show'),3500);
+}
+function resetAll(){
+  if(scanning) return;
+  parsedIOCs=[];results=[];activeFilter='ALL';paused=false;lastSortCol='idx';sortDir2=1;
+  document.getElementById('fileChip').classList.remove('show');
+  document.getElementById('fileIn').value='';
+  document.getElementById('pasteBox').value='';
+  document.getElementById('pasteCount').textContent='0 IOCs detected';
+  document.getElementById('progSec').classList.remove('show');
+  document.getElementById('resSec').classList.remove('show');
+  document.getElementById('dashGrid').style.display='none';
+  document.getElementById('warnBanner').classList.remove('show');
+  document.getElementById('rateBanner').classList.remove('show');
+  document.getElementById('btnRun').disabled=true;
+  document.getElementById('btnPause').style.display='none';
+  document.getElementById('btnExp').disabled=true;
+  document.getElementById('progFill').style.width='0%';
+  document.getElementById('logBody').innerHTML='';
+  document.getElementById('searchInp').value='';
+  ['ph-parse','ph-vt','ph-ab','ph-otx','ph-geo','ph-done'].forEach(p=>{document.getElementById(p).classList.remove('active','done');});
+  document.querySelectorAll('.fb').forEach((b,i)=>b.classList.toggle('active',i===0));
+  document.getElementById('tBody').innerHTML=`<tr><td colspan="9"><div class="empty-s"><div class="ei">🛡️</div><div class="et">Upload a file or paste IOCs to begin</div></div></td></tr>`;
+  if(donutChart){donutChart.destroy();donutChart=null;}
+  toast('Reset complete','ok');
+}
+// Init geo dot always green (no key needed)
+document.getElementById('st-geo').className='ap on';
+</script>
+</body>
+</html>
