@@ -45,6 +45,22 @@ header{padding:16px 0;border-bottom:1px solid var(--border);background:rgba(4,6,
 .b-sub{font-family:var(--font-mono);font-size:8px;color:var(--gray);letter-spacing:3px;}
 .h-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .api-pills{display:flex;gap:6px;}
+.owner-card{display:flex;align-items:center;gap:9px;padding:5px 12px 5px 6px;
+  border:1px solid var(--border2);border-radius:20px;background:rgba(255,255,255,0.03);
+  transition:all .2s;text-decoration:none;}
+.owner-card:hover{border-color:var(--accent);background:rgba(0,255,224,0.04);
+  box-shadow:0 0 14px rgba(0,255,224,0.08);}
+.owner-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border2);
+  object-fit:cover;flex-shrink:0;}
+.owner-info{display:flex;flex-direction:column;gap:1px;}
+.owner-name{font-size:10px;font-weight:700;color:var(--white);letter-spacing:.5px;}
+.owner-role{font-family:var(--font-mono);font-size:7px;color:var(--gray);letter-spacing:1px;}
+.owner-links{display:flex;gap:5px;margin-top:2px;}
+.owner-link{font-family:var(--font-mono);font-size:7px;padding:1px 5px;border-radius:2px;
+  border:1px solid var(--border);color:var(--gray);text-decoration:none;transition:all .15s;}
+.owner-link:hover{color:var(--accent);border-color:rgba(0,255,224,.3);}
+.owner-link.gh:hover{color:#fff;}
+.owner-link.li:hover{color:#0a84ff;border-color:rgba(10,132,255,.3);}
 .ap{font-family:var(--font-mono);font-size:8px;padding:3px 9px;border-radius:3px;
   border:1px solid;display:flex;align-items:center;gap:4px;letter-spacing:1px;transition:all .3s;}
 .ap.off{border-color:var(--border2);color:var(--gray);}
@@ -333,6 +349,16 @@ td{padding:10px 12px;font-family:var(--font-mono);font-size:10px;vertical-align:
           <div class="ap off" id="st-ab">ABUSE</div>
           <div class="ap off" id="st-otx">OTX</div>
           <div class="ap off" id="st-geo">GEO</div>
+        </div>
+        <div class="owner-card">
+          <img class="owner-avatar" src="https://github.com/Naeemk10.png" alt="Naeem Kathawala"/>
+          <div class="owner-info">
+            <span class="owner-name">Naeem Kathawala</span>
+            <div class="owner-links">
+              <a class="owner-link gh" href="https://github.com/Naeemk10" target="_blank">⌥ GitHub</a>
+              <a class="owner-link li" href="https://www.linkedin.com/in/naeem-kathawala/" target="_blank">in LinkedIn</a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
