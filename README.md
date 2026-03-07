@@ -2,8 +2,8 @@
 
 > **Bulk Threat Intelligence Scanner** — Check IPs, domains, URLs and file hashes against multiple threat intelligence sources in one click.
 
-[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-Visit_App-00ffe0?style=for-the-badge)](https://naeemk10.github.io/IOC-sentinel/ioc-sentinel-v4.html)
-[![GitHub Pages](https://img.shields.io/badge/Hosted_on-GitHub_Pages-181717?style=for-the-badge&logo=github)](https://naeemk10.github.io/IOC-sentinel/ioc-sentinel-v4.html)
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-Visit_App-00ffe0?style=for-the-badge)](https://naeemk10.github.io/IOC-sentinel)
+[![GitHub Pages](https://img.shields.io/badge/Hosted_on-GitHub_Pages-181717?style=for-the-badge&logo=github)](https://naeemk10.github.io/IOC-sentinel)
 [![Cloudflare Workers](https://img.shields.io/badge/API_Proxy-Cloudflare_Workers-f48120?style=for-the-badge&logo=cloudflare)](https://workers.cloudflare.com)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
