@@ -33,7 +33,7 @@
 
 ## 🚀 Live Demo
 
-👉 **[https://naeemk10.github.io/IOC-sentinel/ioc-sentinel-v4.html](https://naeemk10.github.io/IOC-sentinel/ioc-sentinel-v4.html)**
+👉 **[https://naeemk10.github.io/IOC-sentinel/ioc-sentinel-v4.html](https://naeemk10.github.io/IOC-sentinel)**
 
 No installation needed — just open in your browser!
 
