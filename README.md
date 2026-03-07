@@ -60,7 +60,7 @@ All APIs have **free tiers** — no payment needed.
 Browser (GitHub Pages)
     │
     ├──► Cloudflare Worker ──► VirusTotal API
-    │    (ioc-sentinel.naeemkathawala07.workers.dev)
+    │    (your-worker.workers.dev)
     │
     ├──► AbuseIPDB API (direct)
     │
